@@ -22,6 +22,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography import x509
 from cryptography.x509.oid import NameOID
+import os
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 logger = logging.getLogger("playground.__crap__." + __name__)
@@ -73,8 +75,21 @@ class CrapTransport(StackingTransport):
         self.protocol = protocol
 
     def write(self, data):
-        #self.protocol.send_data(data)
-        self.protocol.transport.write()
+        if self.mode == "client":
+            aesgcm = AESGCM(self.encA)
+            encDataA = aesgcm.encrypt(self.ivA, data, None)
+            self.ivA = (int.from_bytes(self.ivA, "big") + 1).to_bytes(12, "big")
+            new_packet = DataPacket(data=encDataA)
+            self.transport.write(new_packet.__serialize__())
+            print("Client send encrypted data")
+
+        if self.mode == "server":
+            aesgcm = AESGCM(self.encB)
+            encDataB = aesgcm.encrypt(self.ivB, data, None)
+            self.ivB = (int.from_bytes(self.ivB, "big") + 1).to_bytes(12, "big")
+            new_packet = DataPacket(data=encDataB)
+            self.transport.write(new_packet.__serialize__())
+            print("server send encrypted data")
 
     def close(self):
         self.protocol.transport.close()
@@ -153,7 +168,7 @@ class CRAP(StackingProtocol):
         self.deserializer.update(buffer)
         for pkt in self.deserializer.nextPackets():
             if isinstance(pkt, ErrorPacket):
-                print("Receive an ErrorPacket from autograder!{}".format(pkt.messsage))
+                print("Receive an ErrorPacket from autograder!{}".format(pkt.message))
                 return
 
             if pkt.DEFINITION_IDENTIFIER == "crap.handshakepacket":
@@ -344,6 +359,29 @@ class CRAP(StackingProtocol):
                     print("client dec:", self.decA)
 
                     self.higherProtocol().connection_made(self.crap_transport)
+
+            if pkt.DEFINITION_IDENTIFIER == "crap.datapacket":
+                if self.mode == "server":
+                    aesgcm = AESGCM(self.decB)
+                    try:
+                        decDataB = aesgcm.decrypt(self.ivA, pkt.data, None)
+
+                    except Exception as error:
+                        logger.debug("Server Decryption failed")
+
+                    self.ivA = (int.from_bytes(self.ivA, "big") + 1).to_bytes(12, "big")
+                    self.higherProtocol().data_received(decDataB)
+
+                if self.mode == "client":
+                    aesgcm = AESGCM(self.decA)
+                    try:
+                        decDataA = aesgcm.decrypt(self.ivB, pkt.data, None)
+
+                    except Exception as error:
+                        logger.debug("Client Decryption failed")
+
+                    self.ivB = (int.from_bytes(self.ivB, "big") + 1).to_bytes(12, "big")
+                    self.higherProtocol().data_received(decDataA)
 
 
 SecureClientFactory = StackingProtocolFactory.CreateFactoryType(lambda: POOP(mode="client"),lambda: CRAP(mode="client"))
