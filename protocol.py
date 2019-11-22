@@ -172,7 +172,7 @@ class CRAP(StackingProtocol):
 
                     if pkt.status == 0:
                         client_certification = x509.load_pem_x509_certificate(pkt.cert, default_backend())
-                        Upper_certification = x509.load_pem_x509_certificate(pkt.certChain, default_backend())
+                        Upper_certification = x509.load_pem_x509_certificate(pkt.certChain[0], default_backend())
 
                         if(Upper_certification.issuer != self.root_CA_cert.issuer):
                             #Upper_certification.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
@@ -285,7 +285,7 @@ class CRAP(StackingProtocol):
 
                 elif self._mode == "client" and pkt.status == 1:
                     server_certification = x509.load_pem_x509_certificate(pkt.cert, default_backend())
-                    Upper_certification = x509.load_pem_x509_certificate(pkt.certChain, default_backend())
+                    Upper_certification = x509.load_pem_x509_certificate(pkt.certChain[0], default_backend())
                     # ToDo certification integrity verify and common name verify
                     if (Upper_certification.issuer != self.root_CA_cert.issuer):
                         # Upper_certification.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
