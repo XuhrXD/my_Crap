@@ -364,24 +364,24 @@ class CRAP(StackingProtocol):
                 if self.mode == "server":
                     aesgcm = AESGCM(self.decB)
                     try:
-                        decDataB = aesgcm.decrypt(self.ivA, pkt.data, None)
+                        decData = aesgcm.decrypt(self.ivA, pkt.data, None)
 
                     except Exception as error:
                         logger.debug("Server Decryption failed")
 
                     self.ivA = (int.from_bytes(self.ivA, "big") + 1).to_bytes(12, "big")
-                    self.higherProtocol().data_received(decDataB)
+                    self.higherProtocol().data_received(decData)
 
                 if self.mode == "client":
                     aesgcm = AESGCM(self.decA)
                     try:
-                        decDataA = aesgcm.decrypt(self.ivB, pkt.data, None)
+                        decData = aesgcm.decrypt(self.ivB, pkt.data, None)
 
                     except Exception as error:
                         logger.debug("Client Decryption failed")
 
                     self.ivB = (int.from_bytes(self.ivB, "big") + 1).to_bytes(12, "big")
-                    self.higherProtocol().data_received(decDataA)
+                    self.higherProtocol().data_received(decData)
 
 
 SecureClientFactory = StackingProtocolFactory.CreateFactoryType(lambda: POOP(mode="client"),lambda: CRAP(mode="client"))
