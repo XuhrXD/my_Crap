@@ -316,7 +316,7 @@ class CRAP(StackingProtocol):
                     self.transport.write(tls_handshake_packet.__serialize__())
                     # Generate shared key
                     recv_pubk = load_pem_public_key(pkt.pk, backend=default_backend())
-                    self.shared_key = self.privkA.exchange(ec.ECDH(), recv_pubk)
+                    self.shared_key = self.client_private_key.exchange(ec.ECDH(), recv_pubk)
 
                     print("Client TLS Handshake complete")
 
