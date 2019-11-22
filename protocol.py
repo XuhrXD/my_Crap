@@ -139,7 +139,7 @@ class CRAP(StackingProtocol):
 
             builder = x509.CertificateBuilder()
             builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.20.30'), ]))
-            builder = builder.issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5'), ]))
+            builder = builder.issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.'), ]))
             builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
             builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
             builder = builder.serial_number(x509.random_serial_number())
@@ -236,7 +236,7 @@ class CRAP(StackingProtocol):
                         builder = builder.subject_name(
                             x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.20.30'), ]))
                         builder = builder.issuer_name(
-                            x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5'), ]))
+                            x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.'), ]))
                         builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
                         builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
                         builder = builder.serial_number(x509.random_serial_number())
