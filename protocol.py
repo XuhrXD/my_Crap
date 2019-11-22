@@ -284,8 +284,16 @@ class CRAP(StackingProtocol):
 
 
                 elif self._mode == "client" and pkt.status == 1:
-                    certification = x509.load_pem_x509_certificate(pkt.cert, default_backend())
-                    self.cert_pubkB = certification.public_key()
+                    server_certification = x509.load_pem_x509_certificate(pkt.cert, default_backend())
+                    Upper_certification = x509.load_pem_x509_certificate(pkt.certChain, default_backend())
+                    # ToDo certification integrity verify and common name verify
+                    if (Upper_certification.issuer != self.root_CA_cert.issuer):
+                        # Upper_certification.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+                        print("Upper_cert is not signed by a trusted root CA!")
+                        return
+
+                    self.cert_pubkB = server_certification.public_key()
+
                     try:
                         self.cert_pubkB.verify(pkt.signature, pkt.pk, padding.PSS(mgf=padding.MGF1(hashes.SHA256()),salt_length=padding.PSS.MAX_LENGTH),hashes.SHA256())
                     except Exception as error:
