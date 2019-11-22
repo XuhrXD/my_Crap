@@ -8,7 +8,7 @@ import binascii
 import bisect
 from random import randrange
 from playground.network.packet import PacketType
-from playground.network.packet.fieldtypes import UINT8, UINT32, STRING, BUFFER
+from playground.network.packet.fieldtypes import UINT8, UINT32, STRING, BUFFER, LIST
 from playground.network.packet.fieldtypes.attributes import Optional
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
