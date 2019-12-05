@@ -75,20 +75,20 @@ class CrapTransport(StackingTransport):
         self.protocol = protocol
 
     def write(self, data):
-        if self.mode == "client":
+        if self.protocol._mode == "client":
             aesgcm = AESGCM(self.encA)
-            encDataA = aesgcm.encrypt(self.ivA, data, None)
-            self.ivA = (int.from_bytes(self.ivA, "big") + 1).to_bytes(12, "big")
+            encDataA = aesgcm.encrypt(self.protocol.ivA, data, None)
+            self.protocol.ivA = (int.from_bytes(self.protocol.ivA, "big") + 1).to_bytes(12, "big")
             new_packet = DataPacket(data=encDataA)
-            self.transport.write(new_packet.__serialize__())
+            self.protocol.transport.write(new_packet.__serialize__())
             print("Client send encrypted data")
 
-        if self.mode == "server":
-            aesgcm = AESGCM(self.encB)
-            encDataB = aesgcm.encrypt(self.ivB, data, None)
-            self.ivB = (int.from_bytes(self.ivB, "big") + 1).to_bytes(12, "big")
+        if self.protocol._mode == "server":
+            aesgcm = AESGCM(self.protocol.encB)
+            encDataB = aesgcm.encrypt(self.protocol.ivB, data, None)
+            self.protocol.ivB = (int.from_bytes(self.protocol.ivB, "big") + 1).to_bytes(12, "big")
             new_packet = DataPacket(data=encDataB)
-            self.transport.write(new_packet.__serialize__())
+            self.protocol.transport.write(new_packet.__serialize__())
             print("server send encrypted data")
 
     def close(self):
@@ -139,7 +139,7 @@ class CRAP(StackingProtocol):
 
             builder = x509.CertificateBuilder()
             builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.20.30'), ]))
-            builder = builder.issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.'), ]))
+            builder = builder.issuer_name(self.team5_CA_cert.subject)
             builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
             builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
             builder = builder.serial_number(x509.random_serial_number())
@@ -188,13 +188,28 @@ class CRAP(StackingProtocol):
                     if pkt.status == 0:
                         client_certification = x509.load_pem_x509_certificate(pkt.cert, default_backend())
                         Upper_certification = x509.load_pem_x509_certificate(pkt.certChain[0], default_backend())
+                        lower_certification = x509.load_pem_x509_certificate(pkt.certChain[-1], default_backend())
 
                         if(Upper_certification.issuer != self.root_CA_cert.issuer):
-                            #Upper_certification.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
                             print("Upper_cert is not signed by a trusted root CA!")
                             return
 
+                        lower_commonname = lower_certification.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+                        client_commonname = client_certification.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+                        print(lower_commonname)
+                        print(client_commonname)
+
+                        if lower_commonname[0:6] != client_commonname[0:6]:
+                            print("client certification is not signed by a trust lower_CA according to the rules!")
+                            return
+                        print(self.transport.get_extra_info('peername'))
+
+                        if client_commonname != self.transport.get_extra_info('peername')[0]:
+                            print("client common name check failed because this is a wrong common name")
+                            return
+
                         self.cert_pubkA = client_certification.public_key()
+
                         try:
                             self.cert_pubkA.verify(pkt.signature, pkt.pk,
                                                  padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
@@ -222,7 +237,6 @@ class CRAP(StackingProtocol):
                         recv_pbk = load_pem_public_key(pkt.pk, backend=default_backend())
                         self.shared_key = self.server_private_key.exchange(ec.ECDH(), recv_pbk)
 
-                        print("111111111111111111")
                         data = self.server_public_key.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
                         sigB = self.server_sign_pvk.sign(data, padding.PSS(mgf=padding.MGF1(hashes.SHA256()),salt_length=padding.PSS.MAX_LENGTH),hashes.SHA256())
                         tls_handshake_packet = HandshakePacket(status=1)
@@ -230,13 +244,11 @@ class CRAP(StackingProtocol):
                         tls_handshake_packet.signature = sigB
                         tls_handshake_packet.nonce = self.snonce
 
-                        print("12312313123123132")
 
                         builder = x509.CertificateBuilder()
                         builder = builder.subject_name(
                             x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.20.30'), ]))
-                        builder = builder.issuer_name(
-                            x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.'), ]))
+                        builder = builder.issuer_name(self.team5_CA_cert.subject)
                         builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
                         builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
                         builder = builder.serial_number(x509.random_serial_number())
@@ -361,28 +373,29 @@ class CRAP(StackingProtocol):
                     self.higherProtocol().connection_made(self.crap_transport)
 
             if pkt.DEFINITION_IDENTIFIER == "crap.datapacket":
-                if self.mode == "server":
+                if self._mode == "server":
                     aesgcm = AESGCM(self.decB)
                     try:
-                        decDataB = aesgcm.decrypt(self.ivA, pkt.data, None)
+                        decData = aesgcm.decrypt(self.ivA, pkt.data, None)
 
                     except Exception as error:
                         logger.debug("Server Decryption failed")
 
                     self.ivA = (int.from_bytes(self.ivA, "big") + 1).to_bytes(12, "big")
-                    self.higherProtocol().data_received(decDataB)
+                    self.higherProtocol().data_received(decData)
 
-                if self.mode == "client":
+                if self._mode == "client":
                     aesgcm = AESGCM(self.decA)
                     try:
-                        decDataA = aesgcm.decrypt(self.ivB, pkt.data, None)
+                        decData = aesgcm.decrypt(self.ivB, pkt.data, None)
 
                     except Exception as error:
                         logger.debug("Client Decryption failed")
 
                     self.ivB = (int.from_bytes(self.ivB, "big") + 1).to_bytes(12, "big")
-                    self.higherProtocol().data_received(decDataA)
+                    self.higherProtocol().data_received(decData)
 
 
 SecureClientFactory = StackingProtocolFactory.CreateFactoryType(lambda: POOP(mode="client"),lambda: CRAP(mode="client"))
 SecureServerFactory = StackingProtocolFactory.CreateFactoryType(lambda: POOP(mode="server"),lambda: CRAP(mode="server"))
+
