@@ -26,7 +26,17 @@ import os
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
-logger = logging.getLogger("playground.__crap__." + __name__)
+logger = logging.getLogger("__crap__." + __name__)
+logger.setLevel(level=logging.DEBUG)
+handler = logging.FileHandler('crap.log', encoding='UTF-8')
+#handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)
+logger.addHandler(handler)
+logger.addHandler(console)
+
 
 
 class CrapPacketType(PacketType):
@@ -76,7 +86,7 @@ class CrapTransport(StackingTransport):
 
     def write(self, data):
         if self.protocol._mode == "client":
-            aesgcm = AESGCM(self.encA)
+            aesgcm = AESGCM(self.protocol.encA)
             encDataA = aesgcm.encrypt(self.protocol.ivA, data, None)
             self.protocol.ivA = (int.from_bytes(self.protocol.ivA, "big") + 1).to_bytes(12, "big")
             new_packet = DataPacket(data=encDataA)
@@ -123,9 +133,9 @@ class CRAP(StackingProtocol):
             self.client_public_key = self.client_private_key.public_key()
             self.client_sign_pvk = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
             self.client_sign_pbk = self.client_sign_pvk.public_key()
-            root_CA_cert = open('20194_root.cert', 'rb').read()
-            team5_CA_cert = open('team5_signed.cert', 'rb').read()
-            team5_CA_private_key = open('private_key.pem', 'rb').read()
+            root_CA_cert = open('/home/student_20194/.playground/connectors/crap/20194_root.cert', 'rb').read()
+            team5_CA_cert = open('/home/student_20194/.playground/connectors/crap/team5_signed.cert', 'rb').read()
+            team5_CA_private_key = open('/home/student_20194/.playground/connectors/crap/private_key.pem', 'rb').read()
             self.team5_CA_sign_pvk = load_pem_private_key(team5_CA_private_key, password=None, backend=default_backend())
             self.root_CA_cert = x509.load_pem_x509_certificate(root_CA_cert, default_backend())
             self.team5_CA_cert = x509.load_pem_x509_certificate(team5_CA_cert, default_backend())
@@ -136,17 +146,80 @@ class CRAP(StackingProtocol):
 
             self.cnonce = randrange(2 ** 32)
             self.serialized_cnonce = str(self.cnonce).encode('ASCII')
-
-            builder = x509.CertificateBuilder()
-            builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.20.30'), ]))
-            builder = builder.issuer_name(self.team5_CA_cert.subject)
-            builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
-            builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
-            builder = builder.serial_number(x509.random_serial_number())
-            builder = builder.public_key(self.client_sign_pbk)
-            builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"20194.5.20.30")]), critical=False)
-            certificate = builder.sign(private_key=self.team5_CA_sign_pvk, algorithm=hashes.SHA256(),
+            self.rule = 0
+            
+            if self.rule == 0:
+                builder = x509.CertificateBuilder()
+                builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.20.30'), ]))
+                builder = builder.issuer_name(self.team5_CA_cert.subject)
+                builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
+                builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
+                builder = builder.serial_number(x509.random_serial_number())
+                builder = builder.public_key(self.client_sign_pbk)
+                builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"20194.5.20.30")]), critical=False)
+                certificate = builder.sign(private_key=self.team5_CA_sign_pvk, algorithm=hashes.SHA256(),
                                        backend=default_backend())
+            if self.rule ==1:
+                #client_certification is not signed by team CA
+                wrong_signk = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+                builder = x509.CertificateBuilder()
+                builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.20.30'), ]))
+                builder = builder.issuer_name(self.team5_CA_cert.subject)
+                builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
+                builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
+                builder = builder.serial_number(x509.random_serial_number())
+                builder = builder.public_key(self.client_sign_pbk)
+                builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"20194.5.20.30")]), critical=False)
+                certificate = builder.sign(private_key=wrong_signk, algorithm=hashes.SHA256(),
+                                       backend=default_backend())
+            if self.rule ==2:
+                #team_certification is not signed by root
+                wrong_signk = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+                builder = x509.CertificateBuilder()
+                builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.'), ]))
+                builder = builder.issuer_name(self.root_CA_cert.subject)
+                builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
+                builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
+                builder = builder.serial_number(x509.random_serial_number())
+                builder = builder.public_key(self.team5_CA_sign_pbk)
+                builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"20194.5.")]), critical=False)
+                team5_certificate = builder.sign(private_key=wrong_signk, algorithm=hashes.SHA256(),backend=default_backend())
+                team5_CA_cert = team5_certificate.public_bytes(Encoding.PEM)
+                builder = x509.CertificateBuilder()
+                builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.20.30'), ]))
+                builder = builder.issuer_name(self.root_CA_cert.subject)
+                builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
+                builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
+                builder = builder.serial_number(x509.random_serial_number())
+                builder = builder.public_key(self.client_sign_pbk)
+                builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"20194.5.20.30")]), critical=False)
+                certificate = builder.sign(private_key=self.team5_CA_sign_pvk, algorithm=hashes.SHA256(),
+                                       backend=default_backend())
+            if self.rule ==3:
+                #common name not match
+                builder = x509.CertificateBuilder()
+                builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.5.1.1'), ]))
+                builder = builder.issuer_name(self.team5_CA_cert.subject)
+                builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
+                builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
+                builder = builder.serial_number(x509.random_serial_number())
+                builder = builder.public_key(self.client_sign_pbk)
+                builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"20194.5.1.1")]), critical=False)
+                certificate = builder.sign(private_key=self.team5_CA_sign_pvk, algorithm=hashes.SHA256(),
+                                       backend=default_backend())
+            if self.rule ==4:
+                #certification not signed by right team CA, have to change playground address
+                builder = x509.CertificateBuilder()
+                builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'20194.4.20.30'), ]))
+                builder = builder.issuer_name(self.root_CA_cert.subject)
+                builder = builder.not_valid_before(datetime.datetime.today() - (datetime.timedelta(days=90)))
+                builder = builder.not_valid_after(datetime.datetime.today() + (datetime.timedelta(days=90)))
+                builder = builder.serial_number(x509.random_serial_number())
+                builder = builder.public_key(self.client_sign_pbk)
+                builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"20194.4.20.30")]), critical=False)
+                certificate = builder.sign(private_key=self.team5_CA_sign_pvk, algorithm=hashes.SHA256(),
+                                       backend=default_backend())
+
             client_cert = certificate.public_bytes(Encoding.PEM)
 
             data = self.client_public_key.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
@@ -174,9 +247,9 @@ class CRAP(StackingProtocol):
             if pkt.DEFINITION_IDENTIFIER == "crap.handshakepacket":
                 logger.debug("***{} CRAP: Received a TLS handshakepacket***".format(self._mode))
                 if self._mode == "server":
-                    root_CA_cert = open('20194_root.cert', 'rb').read()
-                    team5_CA_cert = open('team5_signed.cert', 'rb').read()
-                    team5_CA_private_key = open('private_key.pem', 'rb').read()
+                    root_CA_cert = open('/home/student_20194/.playground/connectors/crap/20194_root.cert', 'rb').read()
+                    team5_CA_cert = open('/home/student_20194/.playground/connectors/crap/team5_signed.cert', 'rb').read()
+                    team5_CA_private_key = open('/home/student_20194/.playground/connectors/crap/private_key.pem', 'rb').read()
 
                     self.team5_CA_sign_pvk = load_pem_private_key(team5_CA_private_key, password=None,
                                                                   backend=default_backend())
@@ -199,14 +272,43 @@ class CRAP(StackingProtocol):
                         print(lower_commonname)
                         print(client_commonname)
 
-                        if lower_commonname[0:6] != client_commonname[0:6]:
-                            print("client certification is not signed by a trust lower_CA according to the rules!")
+                        try:
+                            self.root_CA_sign_pbk.verify(Upper_certification.signature,Upper_certification.tbs_certificate_bytes,padding.PKCS1v15(),hashes.SHA256())
+                            lower_certification.public_key().verify(client_certification.signature,client_certification.tbs_certificate_bytes,padding.PKCS1v15(),hashes.SHA256())
+                        except Exception as error:
+                            logger.debug("certification chain verify failed")
+                            error_packet = HandshakePacket(status=2)
+                            self.transport.write(error_packet.__serialize__())
+                            self.transport.close()
                             return
+
+                        with open('/home/student_20194/20194NetworkSecurity/src/bankstart/src/logfile.txt', 'a+') as f:
+                            f.write(str(time.asctime(time.localtime(time.time()))))
+                            f.write('   issuer:')
+                            f.write(str(lower_commonname))
+                            f.write('   certification belongs to:')
+                            f.write(str(client_commonname))
+                            f.write('   connector:')
+                            f.write(str(self.transport.get_extra_info('peername')[0]))
+                            f.write('\n')
+
+
+                        if lower_commonname[0:6] != client_commonname[0:6]:
+                            logger.debug("client certification is not signed by a trust lower_CA according to the rules!")
+                            error_packet = HandshakePacket(status=2)
+                            self.transport.write(error_packet.__serialize__())
+                            self.transport.close()
+                            return
+
                         print(self.transport.get_extra_info('peername'))
 
                         if client_commonname != self.transport.get_extra_info('peername')[0]:
-                            print("client common name check failed because this is a wrong common name")
+                            logger.debug("client common name check failed because this is a wrong common name")
+                            error_packet = HandshakePacket(status=2)
+                            self.transport.write(error_packet.__serialize__())
+                            self.transport.close()
                             return
+
 
                         self.cert_pubkA = client_certification.public_key()
 
