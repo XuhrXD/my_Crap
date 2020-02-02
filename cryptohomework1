@@ -21,7 +21,7 @@ Problem 2:The following ciphertext has been encrypted using the Permutation Ciph
 Find the permutation key and describe what techniques you used.
 
 Let's assume the cipher block is 5:
-WE can see in the last block: BAYME , The word can be rearranged to MAYBE, which is 42315.
+WE can see in the last block: BAYME , The word can be rearranged to MAYBE, whose permutation key is 42315.
 Then apply this key to all blocks:
 HESWA   WE SHA
 OLGLO   LL GO O
@@ -65,3 +65,5 @@ WE SHALL FIGHT WITH GROWING CONFIDENCE AND GROWING STRENGTH IN THE AIR
 WE SHALL DEFEND OUR ISLAND WHATEVER THE COST MAYBE
 
 Problem 3: Answer the following questions:
+1. Describe (in your own words) what the Index of Coincidence is.
+2. What is the IoC value for uniformly random text, assuming a standard 26-letter alphabet. Explain why.
