@@ -66,4 +66,16 @@ WE SHALL DEFEND OUR ISLAND WHATEVER THE COST MAYBE
 
 Problem 3: Answer the following questions:
 1. Describe (in your own words) what the Index of Coincidence is.
+
+The index of coincidence is the probability of two randomly selected letters being equal in a given text string. 
+
 2. What is the IoC value for uniformly random text, assuming a standard 26-letter alphabet. Explain why.
+According to the calculation of IC,
+
+3. Take two piece of (relatively long) English-language text and calculate the IoC value
+for those texts. You should feel free to use an online app for this. List the texts you
+used.
+
+4. Give two vulnerabilities with the Permutation Cipher.
+
+
