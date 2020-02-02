@@ -1,1 +1,67 @@
+Problem 1: Suppose we are told that the Vigenere ciphertext CCWEKHBSJIR decrypts to
+CHICKENSOUP. Determine the cipher key.
 
+According to the rules of Vigenere cipher:
+                                    C = P + K mod 26
+Plaintext:  CHICKENSOUP
+ciphertext: CCWEKHBSJIR
+
+so the cipher key is: 0 21 14 2 0 3 14 0 21 14 2
+which is : AVOCADOAVOC
+
+Problem 2:The following ciphertext has been encrypted using the Permutation Cipher.
+
+                                    HESWAOLGLOTTONHDENEWASHELGFILH
+                                    FINTRENCAWASHELGFILHTONTHASEES
+                                    ONDACSANEWASHELGFILHTWITHWROGI
+                                    OGCNNEIDFNNEACDWROGITGSNRTNGEH
+                                    HNTIEWIRAELHASLEEFDNROUDINLASD
+                                    THAWETERVHSCOETBAYME
+                                    
+Find the permutation key and describe what techniques you used.
+
+Let's assume the cipher block is 5:
+WE can see in the last block: BAYME , The word can be rearranged to MAYBE, which is 42315.
+Then apply this key to all blocks:
+HESWA   WE SHA
+OLGLO   LL GO O
+TTONH   N TO TH  
+DENEW   E END W
+ASHEL   E SHAL 
+GFILH   L FIGH
+FINTR   T IN FR
+ENCAW   ANCE W
+ASHEL   E SHAL
+GFILH   L FIGH
+TONTH   T ON TH
+ASEES   E SEAS
+ONDAC   AND OC
+SANEW   EANS W
+ASHEL   E SHAL
+GFILH   L FIGH
+TWITH   T WITH
+WROGI   GROWI
+OGCNN   NG CON
+EIDFN   FIDEN
+NEACD   CE AND 
+WROGI   GROWI
+TGSNR   NG STR
+TNGEH   ENGTH
+HNTIE   IN THE
+WIRAE   AIR WE
+LHASL   SHALL
+EEFDN   DEFEN
+ROUDI   D OUR I
+NLASD   SLAND
+THAWE   WHATE
+TERVH   VER TH
+SCOET   E COST
+BAYME   MAYBE
+Now we get the plaintext:
+WE SHALL GO ON TO THE END 
+WE SHALL FIGHT IN FRANCE
+WE SHALL FIGHT ON THE SEAS AND OCEANS 
+WE SHALL FIGHT WITH GROWING CONFIDENCE AND GROWING STRENGTH IN THE AIR
+WE SHALL DEFEND OUR ISLAND WHATEVER THE COST MAYBE
+
+Problem 3: Answer the following questions:
